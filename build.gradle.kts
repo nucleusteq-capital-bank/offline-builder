@@ -65,14 +65,25 @@ tasks.register("buildOfflineRepo") {
 
             val id = it.id.componentIdentifier as ModuleComponentIdentifier
             val groupPath = id.group.replace(".", "/")
-
             val targetDir = File(repoDir, "$groupPath/${id.module}/${id.version}")
             targetDir.mkdirs()
 
-            val targetFile = File(targetDir, it.file.name)
-            it.file.copyTo(targetFile, overwrite = true)
-        }
+            // copy jar
+            it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
 
+            // download pom
+            val pomUrl =
+                "https://repo.maven.apache.org/maven2/$groupPath/${id.module}/${id.version}/${id.module}-${id.version}.pom"
+            val pomFile = File(targetDir, "${id.module}-${id.version}.pom")
+            try {
+                pomUrl.toURL().openStream().use { input ->
+                    pomFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
         println("Offline repository created at: ${repoDir.absolutePath}")
     }
 }
