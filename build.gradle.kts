@@ -1,5 +1,6 @@
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedArtifactResult
+import org.gradle.api.attributes.Category
 import java.io.File
 
 // Versions
@@ -14,7 +15,14 @@ repositories {
     gradlePluginPortal()
 }
 
-val resolveAll by configurations.creating
+val resolveAll by configurations.creating {
+    attributes {
+        attribute(
+            Category.CATEGORY_ATTRIBUTE,
+            objects.named(Category.LIBRARY)
+        )
+    }
+}
 
 dependencies {
 
