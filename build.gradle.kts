@@ -33,16 +33,16 @@ val resolveAll by configurations.creating {
 
 dependencies {
 
-    // Plugin markers
+    // -------- Plugin markers --------
     resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion")
     resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion")
 
-    // Plugin implementations
+    // -------- Plugin implementations --------
     resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
     resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
     resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
-    // Common Spring dependencies
+    // -------- Spring dependencies --------
     resolveAll("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
@@ -65,10 +65,10 @@ tasks.register("buildOfflineRepo") {
             val targetDir = File(repoDir, "$groupPath/${id.module}/${id.version}")
             targetDir.mkdirs()
 
-            // copy jar
+            // Copy JAR
             it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
 
-            // download pom
+            // Download POM
             val pomUrl =
                 "https://repo.maven.apache.org/maven2/$groupPath/${id.module}/${id.version}/${id.module}-${id.version}.pom"
 
