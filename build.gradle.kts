@@ -13,7 +13,14 @@ repositories {
     gradlePluginPortal()
 }
 
-val resolveAll by configurations.creating
+val resolveAll by configurations.creating {
+    attributes {
+        attribute(
+            org.gradle.api.attributes.Bundling.BUNDLING_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Bundling.EXTERNAL)
+        )
+    }
+}
 
 dependencies {
 
