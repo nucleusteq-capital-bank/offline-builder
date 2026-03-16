@@ -1,44 +1,58 @@
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedArtifactResult
-import org.gradle.api.attributes.Category
 import java.io.File
 
-// Versions
+// ---------------- Versions ----------------
+
 val springBootVersion = "3.5.6"
 val dependencyManagementVersion = "1.1.6"
 val sonarVersion = "5.0.0.4638"
 
+// ---------------- Repo Output ----------------
+
 val repoDir = file("offline-repo")
+
+// ---------------- Repositories ----------------
 
 repositories {
     mavenCentral()
     gradlePluginPortal()
 }
 
+// ---------------- Configuration ----------------
+
 val resolveAll by configurations.creating {
     attributes {
         attribute(
-            Category.CATEGORY_ATTRIBUTE,
-            objects.named(Category.LIBRARY)
+            org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Category.LIBRARY)
         )
     }
 }
 
+// ---------------- Dependencies to Resolve ----------------
+
 dependencies {
 
-    // Plugin marker
-    resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion")
+    // ---------- Plugin Markers (REQUIRED for Gradle plugins) ----------
 
-    // Plugin implementations
+    resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion")
+    resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion")
+
+    // ---------- Plugin Implementations ----------
+
     resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
     resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
     resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
-    // Common Spring libraries
+    // ---------- Core Spring Libraries ----------
+
     resolveAll("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
 }
+
+// ---------------- Task to Build Offline Repo ----------------
 
 tasks.register("buildOfflineRepo") {
 
@@ -50,14 +64,15 @@ tasks.register("buildOfflineRepo") {
         artifacts.forEach {
 
             val id = it.id.componentIdentifier as ModuleComponentIdentifier
-            val group = id.group.replace(".", "/")
+            val groupPath = id.group.replace(".", "/")
 
-            val targetDir = File(repoDir, "$group/${id.module}/${id.version}")
+            val targetDir = File(repoDir, "$groupPath/${id.module}/${id.version}")
             targetDir.mkdirs()
 
-            it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
+            val targetFile = File(targetDir, it.file.name)
+            it.file.copyTo(targetFile, overwrite = true)
         }
 
-        println("Offline repo created at: ${repoDir.absolutePath}")
+        println("Offline repository created at: ${repoDir.absolutePath}")
     }
 }
