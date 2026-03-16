@@ -2,9 +2,13 @@ import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedArtifactResult
 import java.io.File
 
+// ---------------- Versions ----------------
+
 val springBootVersion = "3.5.6"
 val dependencyManagementVersion = "1.1.7"
 val sonarVersion = "5.0.0.4638"
+
+// ---------------- Output repo ----------------
 
 val repoDir = file("offline-repo")
 
@@ -13,14 +17,33 @@ repositories {
     gradlePluginPortal()
 }
 
+// ---------------- Configuration ----------------
+
 val resolveAll by configurations.creating {
+
+    isCanBeConsumed = false
+    isCanBeResolved = true
+
     attributes {
+
         attribute(
             org.gradle.api.attributes.Bundling.BUNDLING_ATTRIBUTE,
             objects.named(org.gradle.api.attributes.Bundling.EXTERNAL)
         )
+
+        attribute(
+            org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Category.LIBRARY)
+        )
+
+        attribute(
+            org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE,
+            objects.named(org.gradle.api.attributes.Usage.JAVA_RUNTIME)
+        )
     }
 }
+
+// ---------------- Dependencies ----------------
 
 dependencies {
 
@@ -33,11 +56,16 @@ dependencies {
     resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
     resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
-    // Common Spring dependencies
+    // Spring Boot dependencies
     resolveAll("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
+
+    // Force resolution of BOM + parent POM graph
+    resolveAll("org.springframework.boot:spring-boot-dependencies:$springBootVersion@pom")
 }
+
+// ---------------- Task ----------------
 
 tasks.register("buildOfflineRepo") {
 
@@ -60,15 +88,14 @@ tasks.register("buildOfflineRepo") {
             // Copy JAR
             it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
 
-            // Locate POM in Gradle cache
+            // Copy POM from Gradle cache
             val cacheDir = File(System.getProperty("user.home"))
                 .resolve(".gradle/caches/modules-2/files-2.1")
                 .resolve(id.group)
                 .resolve(id.module)
                 .resolve(id.version)
 
-            val pom = cacheDir
-                .walkTopDown()
+            val pom = cacheDir.walkTopDown()
                 .firstOrNull { f -> f.name.endsWith(".pom") }
 
             if (pom != null) {
