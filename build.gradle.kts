@@ -35,7 +35,10 @@ dependencies {
 
     // -------- Plugin markers --------
     resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion")
-    resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion")
+    // -------- Plugin implementations --------
+    resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
+    resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
+    resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
     // -------- Plugin implementations --------
     resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
