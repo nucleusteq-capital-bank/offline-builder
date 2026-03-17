@@ -43,10 +43,11 @@ val resolveAll by configurations.creating {
 
 dependencies {
 
-    // -------- Plugin markers (POM ONLY) --------
+    // -------- Plugin markers --------
 
     resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion@pom")
     resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion@pom")
+    resolveAll("org.sonarqube:org.sonarqube.gradle.plugin:$sonarVersion@pom")
 
     // -------- Plugin implementations --------
 
@@ -80,38 +81,56 @@ tasks.register("buildOfflineRepo") {
 
     doLast {
 
-        val artifacts = resolveAll
+        val repo = repoDir
+
+        val components = resolveAll
             .incoming
-            .artifacts
-            .artifacts
-            .filterIsInstance<ResolvedArtifactResult>()
+            .resolutionResult
+            .allComponents
 
-        artifacts.forEach {
+        components.forEach { comp ->
 
-            val id = it.id.componentIdentifier as ModuleComponentIdentifier
-            val groupPath = id.group.replace(".", "/")
+            val id = comp.id
+            if (id is ModuleComponentIdentifier) {
 
-            val targetDir = File(repoDir, "$groupPath/${id.module}/${id.version}")
-            targetDir.mkdirs()
+                val groupPath = id.group.replace(".", "/")
+                val targetDir = File(repo, "$groupPath/${id.module}/${id.version}")
+                targetDir.mkdirs()
 
-            // Copy JAR
-            it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
+                // -------- Copy JARs --------
+                val artifacts = resolveAll
+                    .incoming
+                    .artifacts
+                    .artifacts
+                    .filterIsInstance<ResolvedArtifactResult>()
+                    .filter {
+                        val cid = it.id.componentIdentifier as? ModuleComponentIdentifier
+                        cid?.group == id.group &&
+                        cid.module == id.module &&
+                        cid.version == id.version
+                    }
 
-            // Copy POM from Gradle cache
-            val cacheDir = File(System.getProperty("user.home"))
-                .resolve(".gradle/caches/modules-2/files-2.1")
-                .resolve(id.group)
-                .resolve(id.module)
-                .resolve(id.version)
+                artifacts.forEach {
+                    it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
+                }
 
-            val pom = cacheDir.walkTopDown()
-                .firstOrNull { f -> f.name.endsWith(".pom") }
+                // -------- Copy ALL POMs from cache --------
+                val cacheDir = File(System.getProperty("user.home"))
+                    .resolve(".gradle/caches/modules-2/files-2.1")
+                    .resolve(id.group)
+                    .resolve(id.module)
+                    .resolve(id.version)
 
-            if (pom != null) {
-                pom.copyTo(File(targetDir, pom.name), overwrite = true)
+                if (cacheDir.exists()) {
+                    cacheDir.walkTopDown()
+                        .filter { it.name.endsWith(".pom") }
+                        .forEach { pom ->
+                            pom.copyTo(File(targetDir, pom.name), overwrite = true)
+                        }
+                }
             }
         }
 
-        println("Offline repo created at: ${repoDir.absolutePath}")
+        println("Offline repo created at: ${repo.absolutePath}")
     }
 }
