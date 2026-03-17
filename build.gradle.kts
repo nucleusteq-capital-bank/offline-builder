@@ -43,10 +43,10 @@ val resolveAll by configurations.creating {
 
 dependencies {
 
-    // -------- Plugin markers --------
+    // -------- Plugin markers (POM ONLY) --------
 
-    resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion")
-    resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion")
+    resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion@pom")
+    resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion@pom")
 
     // -------- Plugin implementations --------
 
@@ -65,7 +65,7 @@ dependencies {
     resolveAll("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
 
-    // -------- Important transitive roots --------
+    // -------- Common transitive roots --------
 
     resolveAll("com.fasterxml.jackson.core:jackson-databind")
     resolveAll("org.apache.commons:commons-compress")
