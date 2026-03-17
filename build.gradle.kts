@@ -1,14 +1,22 @@
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
-import org.gradle.api.artifacts.result.ResolvedArtifactResult
 import java.io.File
 
 // ---------------- Versions ----------------
 
 val springBootVersion = "3.5.6"
-val dependencyManagementVersion = "1.1.7"
 val sonarVersion = "5.0.0.4638"
+val jacksonVersion = "2.19.2"
+val commonsCompressVersion = "1.27.1"
+val httpClientVersion = "5.5"
+val sonarScannerApiVersion = "2.16.2.588"
 
-// ---------------- Output repo ----------------
+// Parent POM versions
+val commonsParentVersion = "72"
+val jacksonBaseVersion = "2.19.2"
+val httpClientParentVersion = "5.5"
+val sonarScannerParentVersion = "2.16.2.588"
+val ossParentVersion = "7"
+
+// ---------------- Repo ----------------
 
 val repoDir = file("offline-repo")
 
@@ -20,53 +28,36 @@ repositories {
 // ---------------- Configuration ----------------
 
 val resolveAll by configurations.creating {
-
-    isCanBeConsumed = false
     isCanBeResolved = true
     isTransitive = true
-
-    attributes {
-        attribute(
-            org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE,
-            objects.named(org.gradle.api.attributes.Category.LIBRARY)
-        )
-
-        attribute(
-            org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE,
-            objects.named(org.gradle.api.attributes.Usage.JAVA_RUNTIME)
-        )
-    }
 }
 
 // ---------------- Dependencies ----------------
 
 dependencies {
 
-    // -------- Plugin markers (POM ONLY) --------
-    resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion@pom")
-    resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion@pom")
-    resolveAll("org.sonarqube:org.sonarqube.gradle.plugin:$sonarVersion@pom")
-
-    // -------- Plugin implementations --------
+    // -------- Plugins --------
     resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
-    resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
     resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
-    // -------- Spring Boot BOM --------
-    resolveAll("org.springframework.boot:spring-boot-dependencies:$springBootVersion@pom")
+    // -------- Plugin markers --------
+    resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion@pom")
+    resolveAll("org.sonarqube:org.sonarqube.gradle.plugin:$sonarVersion@pom")
 
-    // -------- Core starters --------
-    resolveAll("org.springframework.boot:spring-boot-starter:$springBootVersion")
+    // -------- Spring --------
     resolveAll("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
-    resolveAll("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
-    resolveAll("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
 
-    // -------- Force common transitive roots --------
-    resolveAll("com.fasterxml.jackson.core:jackson-databind")
-    resolveAll("org.apache.commons:commons-compress")
-    resolveAll("org.apache.httpcomponents.client5:httpclient5")
-    resolveAll("org.antlr:antlr4-runtime")
-    resolveAll("com.google.code.findbugs:jsr305")
+    // -------- Parent POMs (CRITICAL) --------
+    resolveAll("org.apache.commons:commons-parent:$commonsParentVersion@pom")
+    resolveAll("com.fasterxml.jackson:jackson-base:$jacksonBaseVersion@pom")
+    resolveAll("org.apache.httpcomponents.client5:httpclient5-parent:$httpClientParentVersion@pom")
+    resolveAll("org.sonarsource.scanner.api:sonar-scanner-api-parent:$sonarScannerParentVersion@pom")
+    resolveAll("org.sonatype.oss:oss-parent:$ossParentVersion@pom")
+
+    // -------- Core dependencies --------
+    resolveAll("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    resolveAll("org.apache.commons:commons-compress:$commonsCompressVersion")
+    resolveAll("org.apache.httpcomponents.client5:httpclient5:$httpClientVersion")
 }
 
 // ---------------- Task ----------------
@@ -75,64 +66,41 @@ tasks.register("buildOfflineRepo") {
 
     doLast {
 
-        println(" Resolving ALL components (including parents)...")
+        println("Building FULL offline repo...")
 
-        val components = resolveAll
-            .incoming
-            .resolutionResult
-            .allComponents
+        resolveAll.resolve()
 
-        components.forEach { comp ->
+        val cacheRoot = File(System.getProperty("user.home"))
+            .resolve(".gradle/caches/modules-2/files-2.1")
 
-            val id = comp.id
+        cacheRoot.walkTopDown().forEach { file ->
 
-            if (id is ModuleComponentIdentifier) {
+            if (file.isFile && (file.name.endsWith(".jar") || file.name.endsWith(".pom"))) {
 
-                val groupPath = id.group.replace(".", "/")
-                val targetDir = File(repoDir, "$groupPath/${id.module}/${id.version}")
-                targetDir.mkdirs()
+                val relative = file.absolutePath.substringAfter("files-2.1\\")
+                val parts = relative.split(File.separator)
 
-                println(" ${id.group}:${id.module}:${id.version}")
+                if (parts.size >= 4) {
 
-                // -------- Copy JARs --------
-                val artifacts = resolveAll
-                    .incoming
-                    .artifacts
-                    .artifacts
-                    .filterIsInstance<ResolvedArtifactResult>()
-                    .filter {
-                        val cid = it.id.componentIdentifier as? ModuleComponentIdentifier
-                        cid?.group == id.group &&
-                        cid.module == id.module &&
-                        cid.version == id.version
-                    }
+                    val group = parts[0]
+                    val module = parts[1]
+                    val version = parts[2]
 
-                artifacts.forEach {
-                    it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
-                }
+                    val targetDir = repoDir
+                        .resolve(group.replace(".", "/"))
+                        .resolve(module)
+                        .resolve(version)
 
-                // -------- Copy ALL POMs (including parents) --------
-                val cacheDir = File(System.getProperty("user.home"))
-                    .resolve(".gradle/caches/modules-2/files-2.1")
-                    .resolve(id.group)
-                    .resolve(id.module)
-                    .resolve(id.version)
+                    targetDir.mkdirs()
 
-                if (cacheDir.exists()) {
-
-                    cacheDir.walkTopDown()
-                        .filter { it.isFile && it.name.endsWith(".pom") }
-                        .forEach { pomFile ->
-
-                            pomFile.copyTo(
-                                File(targetDir, pomFile.name),
-                                overwrite = true
-                            )
-                        }
+                    file.copyTo(
+                        targetDir.resolve(file.name),
+                        overwrite = true
+                    )
                 }
             }
         }
 
-        println("\n Offline repo created at: ${repoDir.absolutePath}")
+        println("Offline repo ready at: ${repoDir.absolutePath}")
     }
 }
