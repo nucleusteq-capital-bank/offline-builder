@@ -12,24 +12,19 @@ repositories {
     gradlePluginPortal()
 }
 
-// ------------------------------------------------------------
-// ALL REQUIRED DEPENDENCIES (INCLUDING PLUGIN MARKERS)
-// ------------------------------------------------------------
+
 val deps = listOf(
 
-    // SPRING BOOT PLUGIN MARKER (CRITICAL)
+    //  Spring Boot plugin marker (REQUIRED)
     "org.springframework.boot:org.springframework.boot.gradle.plugin:3.5.6",
 
-    // SPRING BOOT ACTUAL PLUGIN
+    //  Spring Boot actual plugin
     "org.springframework.boot:spring-boot-gradle-plugin:3.5.6",
 
-    // Runtime
+    //  Runtime
     "org.springframework.boot:spring-boot-starter-web:3.5.6",
 
-    // SONAR PLUGIN MARKER
-    "org.sonarsource.scanner.gradle:org.sonarsource.scanner.gradle.plugin:5.0.0.4638",
-
-    // Sonar actual plugin
+    //  Sonar actual plugin (NO marker!)
     "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:5.0.0.4638"
 )
 
@@ -40,7 +35,7 @@ dependencies {
 }
 
 // ------------------------------------------------------------
-// TASK: BUILD OFFLINE REPO
+//  TASK: BUILD OFFLINE REPO
 // ------------------------------------------------------------
 tasks.register("buildOfflineRepo") {
 
@@ -91,7 +86,7 @@ tasks.register("buildOfflineRepo") {
 }
 
 // ------------------------------------------------------------
-//  RECURSIVE POM RESOLUTION (THIS FIXED YOUR EARLIER ISSUE)
+//  RECURSIVE POM DOWNLOAD
 // ------------------------------------------------------------
 fun downloadPomRecursive(group: String, name: String, version: String, repoDir: File) {
 
@@ -134,7 +129,7 @@ fun downloadPomRecursive(group: String, name: String, version: String, repoDir: 
 
                 if (parentGroup != null && parentArtifact != null && parentVersion != null) {
 
-                    //  RECURSIVE CALL
+                    //  recursive
                     downloadPomRecursive(parentGroup, parentArtifact, parentVersion, repoDir)
                 }
             }
