@@ -47,23 +47,37 @@ val resolveAll by configurations.creating {
 
 dependencies {
 
-    // Plugin markers
+    // ---------------- Plugin markers ----------------
+
     resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion")
     resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion")
-
-    // Plugin implementations
-    resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
-    resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
     resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
-    // Spring Boot dependencies
+    // ---------------- Plugin implementations ----------------
+
+    resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
+    resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
+
+    // ---------------- Spring Boot BOM ----------------
+
+    resolveAll("org.springframework.boot:spring-boot-dependencies:$springBootVersion@pom")
+
+    // ---------------- Core starters ----------------
+
+    resolveAll("org.springframework.boot:spring-boot-starter:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
 
-    // Force resolution of BOM + parent POM graph
-    resolveAll("org.springframework.boot:spring-boot-dependencies:$springBootVersion@pom")
+    // ---------------- Frequently required transitive roots ----------------
+
+    resolveAll("com.fasterxml.jackson.core:jackson-databind")
+    resolveAll("org.apache.commons:commons-compress")
+    resolveAll("org.apache.httpcomponents.client5:httpclient5")
+    resolveAll("org.antlr:antlr4-runtime")
+    resolveAll("com.google.code.findbugs:jsr305")
 }
+
 
 // ---------------- Task ----------------
 
