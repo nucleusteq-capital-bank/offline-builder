@@ -23,13 +23,9 @@ val resolveAll by configurations.creating {
 
     isCanBeConsumed = false
     isCanBeResolved = true
+    isTransitive = true
 
     attributes {
-
-        attribute(
-            org.gradle.api.attributes.Bundling.BUNDLING_ATTRIBUTE,
-            objects.named(org.gradle.api.attributes.Bundling.EXTERNAL)
-        )
 
         attribute(
             org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE,
@@ -47,29 +43,29 @@ val resolveAll by configurations.creating {
 
 dependencies {
 
-    // ---------------- Plugin markers ----------------
+    // -------- Plugin markers --------
 
     resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion")
     resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion")
 
-    // ---------------- Plugin implementations ----------------
+    // -------- Plugin implementations --------
 
     resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
     resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
     resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
-    // ---------------- Spring Boot BOM ----------------
+    // -------- Spring Boot BOM --------
 
     resolveAll("org.springframework.boot:spring-boot-dependencies:$springBootVersion@pom")
 
-    // ---------------- Core starters ----------------
+    // -------- Core starters --------
 
     resolveAll("org.springframework.boot:spring-boot-starter:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
 
-    // ---------------- Transitive roots (required by Spring Boot plugins) ----------------
+    // -------- Important transitive roots --------
 
     resolveAll("com.fasterxml.jackson.core:jackson-databind")
     resolveAll("org.apache.commons:commons-compress")
@@ -78,7 +74,7 @@ dependencies {
     resolveAll("com.google.code.findbugs:jsr305")
 }
 
-// ---------------- Task to build offline repo ----------------
+// ---------------- Task to build repo ----------------
 
 tasks.register("buildOfflineRepo") {
 
@@ -98,10 +94,10 @@ tasks.register("buildOfflineRepo") {
             val targetDir = File(repoDir, "$groupPath/${id.module}/${id.version}")
             targetDir.mkdirs()
 
-            // copy jar
+            // Copy JAR
             it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
 
-            // copy pom from gradle cache
+            // Copy POM from Gradle cache
             val cacheDir = File(System.getProperty("user.home"))
                 .resolve(".gradle/caches/modules-2/files-2.1")
                 .resolve(id.group)
