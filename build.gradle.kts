@@ -13,11 +13,23 @@ repositories {
 }
 
 // ------------------------------------------------------------
-// Dependencies to resolve (add ALL your project deps here)
+// ALL REQUIRED DEPENDENCIES (INCLUDING PLUGIN MARKERS)
 // ------------------------------------------------------------
 val deps = listOf(
+
+    // SPRING BOOT PLUGIN MARKER (CRITICAL)
+    "org.springframework.boot:org.springframework.boot.gradle.plugin:3.5.6",
+
+    // SPRING BOOT ACTUAL PLUGIN
     "org.springframework.boot:spring-boot-gradle-plugin:3.5.6",
+
+    // Runtime
     "org.springframework.boot:spring-boot-starter-web:3.5.6",
+
+    // SONAR PLUGIN MARKER
+    "org.sonarsource.scanner.gradle:org.sonarsource.scanner.gradle.plugin:5.0.0.4638",
+
+    // Sonar actual plugin
     "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:5.0.0.4638"
 )
 
@@ -28,13 +40,13 @@ dependencies {
 }
 
 // ------------------------------------------------------------
-// TASK: Build Offline Repo (CORRECT VERSION)
+// TASK: BUILD OFFLINE REPO
 // ------------------------------------------------------------
 tasks.register("buildOfflineRepo") {
 
     doLast {
 
-        println("Building clean offline repo at: ${repoDir.absolutePath}")
+        println(" Building offline repo at: ${repoDir.absolutePath}")
 
         repoDir.mkdirs()
 
@@ -74,12 +86,12 @@ tasks.register("buildOfflineRepo") {
             downloadPomRecursive(group, name, version, repoDir)
         }
 
-        println("Offline repo ready!")
+        println(" Offline repo ready!")
     }
 }
 
 // ------------------------------------------------------------
-// RECURSIVE POM DOWNLOAD (CRITICAL FIX)
+//  RECURSIVE POM RESOLUTION (THIS FIXED YOUR EARLIER ISSUE)
 // ------------------------------------------------------------
 fun downloadPomRecursive(group: String, name: String, version: String, repoDir: File) {
 
@@ -102,10 +114,10 @@ fun downloadPomRecursive(group: String, name: String, version: String, repoDir: 
             val pomText = URL(pomUrl).readText()
 
             pomFile.writeText(pomText)
-            println("POM: $group:$name:$version")
+            println("✔ POM: $group:$name:$version")
 
             // -----------------------------
-            // Parse parent
+            // FIND PARENT
             // -----------------------------
             val parentRegex = Regex("<parent>(.*?)</parent>", RegexOption.DOT_MATCHES_ALL)
             val groupRegex = Regex("<groupId>(.*?)</groupId>")
@@ -121,7 +133,8 @@ fun downloadPomRecursive(group: String, name: String, version: String, repoDir: 
                 val parentVersion = versionRegex.find(parentBlock)?.groupValues?.get(1)
 
                 if (parentGroup != null && parentArtifact != null && parentVersion != null) {
-                    // recursive call
+
+                    //  RECURSIVE CALL
                     downloadPomRecursive(parentGroup, parentArtifact, parentVersion, repoDir)
                 }
             }
