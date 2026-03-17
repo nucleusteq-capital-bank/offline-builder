@@ -51,12 +51,12 @@ dependencies {
 
     resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion")
     resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion")
-    resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
     // ---------------- Plugin implementations ----------------
 
     resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
     resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
+    resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
     // ---------------- Spring Boot BOM ----------------
 
@@ -69,7 +69,7 @@ dependencies {
     resolveAll("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
 
-    // ---------------- Frequently required transitive roots ----------------
+    // ---------------- Transitive roots (required by Spring Boot plugins) ----------------
 
     resolveAll("com.fasterxml.jackson.core:jackson-databind")
     resolveAll("org.apache.commons:commons-compress")
@@ -78,8 +78,7 @@ dependencies {
     resolveAll("com.google.code.findbugs:jsr305")
 }
 
-
-// ---------------- Task ----------------
+// ---------------- Task to build offline repo ----------------
 
 tasks.register("buildOfflineRepo") {
 
@@ -99,10 +98,10 @@ tasks.register("buildOfflineRepo") {
             val targetDir = File(repoDir, "$groupPath/${id.module}/${id.version}")
             targetDir.mkdirs()
 
-            // Copy JAR
+            // copy jar
             it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
 
-            // Copy POM from Gradle cache
+            // copy pom from gradle cache
             val cacheDir = File(System.getProperty("user.home"))
                 .resolve(".gradle/caches/modules-2/files-2.1")
                 .resolve(id.group)
