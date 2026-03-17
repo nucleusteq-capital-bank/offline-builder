@@ -1,106 +1,133 @@
 import java.io.File
+import java.net.URL
 
-// ---------------- Versions ----------------
+plugins {
+    id("base")
+}
 
-val springBootVersion = "3.5.6"
-val sonarVersion = "5.0.0.4638"
-val jacksonVersion = "2.19.2"
-val commonsCompressVersion = "1.27.1"
-val httpClientVersion = "5.5"
-val sonarScannerApiVersion = "2.16.2.588"
-
-// Parent POM versions
-val commonsParentVersion = "72"
-val jacksonBaseVersion = "2.19.2"
-val httpClientParentVersion = "5.5"
-val sonarScannerParentVersion = "2.16.2.588"
-val ossParentVersion = "7"
-
-// ---------------- Repo ----------------
-
-val repoDir = file("offline-repo")
+val repoDir = File(rootDir, "offline-repo")
 
 repositories {
     mavenCentral()
     gradlePluginPortal()
 }
 
-// ---------------- Configuration ----------------
+// ------------------------------------------------------------
+// Dependencies to resolve (add ALL your project deps here)
+// ------------------------------------------------------------
+val deps = listOf(
+    "org.springframework.boot:spring-boot-gradle-plugin:3.5.6",
+    "org.springframework.boot:spring-boot-starter-web:3.5.6",
+    "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:5.0.0.4638"
+)
 
-val resolveAll by configurations.creating {
-    isCanBeResolved = true
-    isTransitive = true
-}
-
-// ---------------- Dependencies ----------------
+val resolveAll = configurations.create("resolveAll")
 
 dependencies {
-
-    // -------- Plugins --------
-    resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
-    resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
-
-    // -------- Plugin markers --------
-    resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion@pom")
-    resolveAll("org.sonarqube:org.sonarqube.gradle.plugin:$sonarVersion@pom")
-
-    // -------- Spring --------
-    resolveAll("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
-
-    // -------- Parent POMs (CRITICAL) --------
-    resolveAll("org.apache.commons:commons-parent:$commonsParentVersion@pom")
-    resolveAll("com.fasterxml.jackson:jackson-base:$jacksonBaseVersion@pom")
-    resolveAll("org.apache.httpcomponents.client5:httpclient5-parent:$httpClientParentVersion@pom")
-    resolveAll("org.sonarsource.scanner.api:sonar-scanner-api-parent:$sonarScannerParentVersion@pom")
-    resolveAll("org.sonatype.oss:oss-parent:$ossParentVersion@pom")
-
-    // -------- Core dependencies --------
-    resolveAll("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
-    resolveAll("org.apache.commons:commons-compress:$commonsCompressVersion")
-    resolveAll("org.apache.httpcomponents.client5:httpclient5:$httpClientVersion")
+    deps.forEach { add("resolveAll", it) }
 }
 
-// ---------------- Task ----------------
-
+// ------------------------------------------------------------
+// TASK: Build Offline Repo (CORRECT VERSION)
+// ------------------------------------------------------------
 tasks.register("buildOfflineRepo") {
 
     doLast {
 
-        println("Building FULL offline repo...")
+        println("Building clean offline repo at: ${repoDir.absolutePath}")
 
-        resolveAll.resolve()
+        repoDir.mkdirs()
 
-        val cacheRoot = File(System.getProperty("user.home"))
-            .resolve(".gradle/caches/modules-2/files-2.1")
+        val baseUrl = "https://repo.maven.apache.org/maven2"
 
-        cacheRoot.walkTopDown().forEach { file ->
+        resolveAll.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
 
-            if (file.isFile && (file.name.endsWith(".jar") || file.name.endsWith(".pom"))) {
+            val group = artifact.moduleVersion.id.group
+            val name = artifact.name
+            val version = artifact.moduleVersion.id.version
 
-                val relative = file.absolutePath.substringAfter("files-2.1\\")
-                val parts = relative.split(File.separator)
+            val groupPath = group.replace(".", "/")
 
-                if (parts.size >= 4) {
+            val targetDir = repoDir
+                .resolve(groupPath)
+                .resolve(name)
+                .resolve(version)
 
-                    val group = parts[0]
-                    val module = parts[1]
-                    val version = parts[2]
+            targetDir.mkdirs()
 
-                    val targetDir = repoDir
-                        .resolve(group.replace(".", "/"))
-                        .resolve(module)
-                        .resolve(version)
+            // -----------------------------
+            // Download JAR
+            // -----------------------------
+            val jarFile = targetDir.resolve("$name-$version.jar")
+            val jarUrl = "$baseUrl/$groupPath/$name/$version/$name-$version.jar"
 
-                    targetDir.mkdirs()
-
-                    file.copyTo(
-                        targetDir.resolve(file.name),
-                        overwrite = true
-                    )
+            if (!jarFile.exists()) {
+                runCatching {
+                    jarFile.writeBytes(URL(jarUrl).readBytes())
+                    println("✔ JAR: $group:$name:$version")
                 }
             }
+
+            // -----------------------------
+            // Download POM + parents
+            // -----------------------------
+            downloadPomRecursive(group, name, version, repoDir)
         }
 
-        println("Offline repo ready at: ${repoDir.absolutePath}")
+        println("Offline repo ready!")
+    }
+}
+
+// ------------------------------------------------------------
+// RECURSIVE POM DOWNLOAD (CRITICAL FIX)
+// ------------------------------------------------------------
+fun downloadPomRecursive(group: String, name: String, version: String, repoDir: File) {
+
+    val baseUrl = "https://repo.maven.apache.org/maven2"
+    val groupPath = group.replace(".", "/")
+
+    val targetDir = repoDir
+        .resolve(groupPath)
+        .resolve(name)
+        .resolve(version)
+
+    targetDir.mkdirs()
+
+    val pomFile = targetDir.resolve("$name-$version.pom")
+
+    if (!pomFile.exists()) {
+
+        try {
+            val pomUrl = "$baseUrl/$groupPath/$name/$version/$name-$version.pom"
+            val pomText = URL(pomUrl).readText()
+
+            pomFile.writeText(pomText)
+            println("POM: $group:$name:$version")
+
+            // -----------------------------
+            // Parse parent
+            // -----------------------------
+            val parentRegex = Regex("<parent>(.*?)</parent>", RegexOption.DOT_MATCHES_ALL)
+            val groupRegex = Regex("<groupId>(.*?)</groupId>")
+            val artifactRegex = Regex("<artifactId>(.*?)</artifactId>")
+            val versionRegex = Regex("<version>(.*?)</version>")
+
+            val parentBlock = parentRegex.find(pomText)?.value
+
+            if (parentBlock != null) {
+
+                val parentGroup = groupRegex.find(parentBlock)?.groupValues?.get(1)
+                val parentArtifact = artifactRegex.find(parentBlock)?.groupValues?.get(1)
+                val parentVersion = versionRegex.find(parentBlock)?.groupValues?.get(1)
+
+                if (parentGroup != null && parentArtifact != null && parentVersion != null) {
+                    // recursive call
+                    downloadPomRecursive(parentGroup, parentArtifact, parentVersion, repoDir)
+                }
+            }
+
+        } catch (e: Exception) {
+            println("⚠ Failed POM: $group:$name:$version")
+        }
     }
 }
