@@ -26,7 +26,6 @@ val resolveAll by configurations.creating {
     isTransitive = true
 
     attributes {
-
         attribute(
             org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE,
             objects.named(org.gradle.api.attributes.Category.LIBRARY)
@@ -43,31 +42,26 @@ val resolveAll by configurations.creating {
 
 dependencies {
 
-    // -------- Plugin markers --------
-
+    // -------- Plugin markers (POM ONLY) --------
     resolveAll("org.springframework.boot:org.springframework.boot.gradle.plugin:$springBootVersion@pom")
     resolveAll("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:$dependencyManagementVersion@pom")
     resolveAll("org.sonarqube:org.sonarqube.gradle.plugin:$sonarVersion@pom")
 
     // -------- Plugin implementations --------
-
     resolveAll("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
     resolveAll("io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion")
     resolveAll("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:$sonarVersion")
 
     // -------- Spring Boot BOM --------
-
     resolveAll("org.springframework.boot:spring-boot-dependencies:$springBootVersion@pom")
 
     // -------- Core starters --------
-
     resolveAll("org.springframework.boot:spring-boot-starter:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
     resolveAll("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
 
-    // -------- Common transitive roots --------
-
+    // -------- Force common transitive roots --------
     resolveAll("com.fasterxml.jackson.core:jackson-databind")
     resolveAll("org.apache.commons:commons-compress")
     resolveAll("org.apache.httpcomponents.client5:httpclient5")
@@ -75,13 +69,13 @@ dependencies {
     resolveAll("com.google.code.findbugs:jsr305")
 }
 
-// ---------------- Task to build repo ----------------
+// ---------------- Task ----------------
 
 tasks.register("buildOfflineRepo") {
 
     doLast {
 
-        val repo = repoDir
+        println(" Resolving ALL components (including parents)...")
 
         val components = resolveAll
             .incoming
@@ -91,11 +85,14 @@ tasks.register("buildOfflineRepo") {
         components.forEach { comp ->
 
             val id = comp.id
+
             if (id is ModuleComponentIdentifier) {
 
                 val groupPath = id.group.replace(".", "/")
-                val targetDir = File(repo, "$groupPath/${id.module}/${id.version}")
+                val targetDir = File(repoDir, "$groupPath/${id.module}/${id.version}")
                 targetDir.mkdirs()
+
+                println(" ${id.group}:${id.module}:${id.version}")
 
                 // -------- Copy JARs --------
                 val artifacts = resolveAll
@@ -114,7 +111,7 @@ tasks.register("buildOfflineRepo") {
                     it.file.copyTo(File(targetDir, it.file.name), overwrite = true)
                 }
 
-                // -------- Copy ALL POMs from cache --------
+                // -------- Copy ALL POMs (including parents) --------
                 val cacheDir = File(System.getProperty("user.home"))
                     .resolve(".gradle/caches/modules-2/files-2.1")
                     .resolve(id.group)
@@ -122,15 +119,20 @@ tasks.register("buildOfflineRepo") {
                     .resolve(id.version)
 
                 if (cacheDir.exists()) {
+
                     cacheDir.walkTopDown()
-                        .filter { it.name.endsWith(".pom") }
-                        .forEach { pom ->
-                            pom.copyTo(File(targetDir, pom.name), overwrite = true)
+                        .filter { it.isFile && it.name.endsWith(".pom") }
+                        .forEach { pomFile ->
+
+                            pomFile.copyTo(
+                                File(targetDir, pomFile.name),
+                                overwrite = true
+                            )
                         }
                 }
             }
         }
 
-        println("Offline repo created at: ${repo.absolutePath}")
+        println("\n Offline repo created at: ${repoDir.absolutePath}")
     }
 }
